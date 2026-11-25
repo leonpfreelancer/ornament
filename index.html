@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Барочный орнамент 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE  work, a workshop sample shown to a client before cutting
+   IDEA   the carver's sample wall: one onlay hung on plaster, re-cut live in three board thicknesses
+   PICTURE the real-time 3D relief, lit from the top left, casting its shadow on the wall
+   COLOUR plaster wall, near-black ink, cherry wood #a95722 as the one accent
+   TYPE   Manrope 800 titles + Manrope 500 text
+   LAYOUT laptop: header line, 3D stage fills the screen, control dock at the bottom; phone: same order, dock wraps */
+:root{color-scheme:light dark;--bg:light-dark(#e7e4de,#1c1b19);--wall:light-dark(#e9e6e0,#2a2825);--ink:light-dark(#1c1a17,#eeeae4);--mute:light-dark(#5d5850,#aaa398);--panel:light-dark(#ffffff,#252320);--line:light-dark(#d5d1c9,#3b3834);--acc:#a95722;--acc2:light-dark(#f3e5da,#3a2a20)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Manrope,system-ui,sans-serif;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:4px 24px;padding:14px max(16px,3vw) 10px}
+h1{margin:0;font-weight:800;font-size:clamp(24px,3.2vw,34px);line-height:1.05;letter-spacing:-.02em}
+.dims{color:var(--mute);font-weight:600;font-size:15px;white-space:nowrap}
+.read{display:flex;align-items:baseline;gap:10px}
+.big{font-weight:800;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.02em;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sub{color:var(--mute);font-size:14px;white-space:nowrap}
+.stage{position:relative;overflow:hidden;background:var(--wall)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;outline:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--mute);white-space:nowrap;pointer-events:none;transition:opacity .6s}
+.lab{position:absolute;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 10px;font-weight:800;font-size:15px;white-space:nowrap;pointer-events:none;display:none}
+.msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--mute);font-weight:600}
+.dock{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;padding:10px max(16px,3vw) max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}
+.grp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;background:var(--bg)}
+.seg button,.tog{font:inherit;font-weight:700;font-size:15px;min-height:44px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:var(--ink);cursor:pointer;white-space:nowrap}
+.seg button:hover,.tog:hover{background:var(--acc2)}
+.seg button[aria-pressed=true]{background:var(--acc);color:#fff}
+.tog{border:1px solid var(--line);background:var(--bg)}
+.tog[aria-pressed=true]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+button:focus-visible,canvas:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#thick button{min-width:60px}
+@media(max-width:600px){.dock{gap:8px}.grp{width:100%;justify-content:space-between}#thick{width:100%}#thick button{flex:1;min-width:0;padding:0 6px}#views{width:100%}#views button{flex:1;min-width:0}.seg button,.tog{font-size:14px;padding:0 10px}.hint{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.hint{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Барочный орнамент</h1>
+    <div class="dims">450 × 458 мм, рельеф для ЧПУ</div>
+  </div>
+  <div class="read"><span class="big" id="tVal">12 мм</span><span class="sub" id="tSub">основание 3 + рельеф 9 мм</span></div>
+</header>
+<div class="stage" id="stage">
+  <canvas id="gl" tabindex="0" aria-label="3D-модель орнамента; потяните, чтобы вращать"></canvas>
+  <div class="lab" id="lab0">9 мм</div><div class="lab" id="lab1">12 мм</div><div class="lab" id="lab2">20 мм</div><div class="lab" id="lab3">30 мм</div>
+  <div class="hint" id="hint">Потяните для вращения, сведите пальцы или прокрутите колёсико для масштаба</div>
+  <div class="msg" id="msg">Загрузка модели…</div>
+</div>
+<div class="dock">
+  <div class="grp">
+    <div class="seg" id="thick" role="group" aria-label="Толщина">
+      <button id="t9" data-t="9" aria-pressed="false">9 мм</button>
+      <button id="t12" data-t="12" aria-pressed="true">12 мм</button>
+      <button id="t20" data-t="20" aria-pressed="false">20 мм</button>
+      <button id="t30" data-t="30" aria-pressed="false">30 мм</button>
+      <button id="tall" data-t="all" aria-pressed="false">Все</button>
+    </div>
+  </div>
+  <div class="grp">
+    <div class="seg" id="views" role="group" aria-label="Вид">
+      <button id="vFront" data-v="front" aria-pressed="false">Спереди</button>
+      <button id="v34" data-v="34" aria-pressed="true">3/4</button>
+      <button id="vSide" data-v="side" aria-pressed="false">Профиль</button>
+    </div>
+    <div class="seg" id="mats" role="group" aria-label="Материал">
+      <button id="mWood" data-m="0" aria-pressed="true">Дерево</button>
+      <button id="mGray" data-m="1" aria-pressed="false">Серый</button>
+    </div>
+    <button class="tog" id="spin" aria-pressed="false">Вращение</button>
+  </div>
+</div>
+<script>
+{
+const META = {w: 903, h: 920, cx: 0.5000319809769624, cy: 0.4999322960263922, base: 3, detail: 1.2, dmax: 0.5247260867506265, t0: 6, ts: 0.5, m: [1.68336, 1.60528, 1.54235, 1.49022, 1.44611, 1.40817, 1.37508, 1.34594, 1.31998, 1.29666, 1.27556, 1.25635, 1.23877, 1.22259, 1.20764, 1.19378, 1.18087, 1.16881, 1.15751, 1.14690, 1.13690, 1.12747, 1.11854, 1.11009, 1.10205, 1.09441, 1.08714, 1.08019, 1.07355, 1.06720, 1.06112, 1.05528, 1.04968, 1.04429, 1.03911, 1.03412, 1.02930, 1.02466, 1.02018, 1.01584, 1.01165, 1.00759, 1.00366, 0.99985, 0.99625, 0.99402, 0.99201, 0.99007, 0.98820, 0.98647, 0.98479, 0.98315, 0.98155]};
+const $ = s => document.querySelector(s);
+const cv = $('#gl'), stage = $('#stage'), msg = $('#msg'), hint = $('#hint');
+const labs = [$('#lab0'), $('#lab1'), $('#lab2'), $('#lab3')];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fail = t => { msg.textContent = t; msg.style.display = 'grid'; };
+const gl = cv.getContext('webgl2', {antialias: true, alpha: false, powerPreference: 'high-performance'});
+
+/* ---------- matematică ---------- */
+const persp = (fy, a, n, f) => { const t = 1 / Math.tan(fy / 2), nf = 1 / (n - f);
+  return [t / a,0,0,0, 0,t,0,0, 0,0,(f + n) * nf,-1, 0,0,2 * f * n * nf,0]; };
+const ortho = (l, r, b, t, n, f) => [2/(r-l),0,0,0, 0,2/(t-b),0,0, 0,0,-2/(f-n),0, -(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1];
+const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; };
+const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+const lookAt = (e, c, u) => { const z = norm(sub(e, c)), x = norm(cross(u, z)), y = cross(z, x);
+  return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,e),-dot(y,e),-dot(z,e),1]; };
+const mul = (a, b) => { const o = new Array(16).fill(0);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) o[j*4+i] += a[k*4+i] * b[j*4+k];
+  return o; };
+const project = (m, p, W, H) => { const x = m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12], y = m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13],
+  w = m[3]*p[0]+m[7]*p[1]+m[11]*p[2]+m[15]; return [(x/w*0.5+0.5)*W, (0.5-y/w*0.5)*H, w]; };
+
+/* ---------- shadere ---------- */
+const VS = `#version 300 es
+in vec2 aP; in float aH; in float aD; in vec4 aG; in float aK; in float aC;
+uniform mat4 uVP; uniform vec2 uOff; uniform float uBase, uRel, uKd, uM;
+out vec3 vP; out vec3 vN; out float vAO;
+void main(){
+  float zt = uBase + uRel * max(aH + uKd * aD, 0.0) / uM;
+  float z = aK > 1.5 ? 0.0 : zt;
+  vec3 p = vec3(aP + uOff, z);
+  vec2 g = (aG.xy + uKd * aG.zw) * (uRel / uM);
+  vN = aK < 0.5 ? normalize(vec3(-g, 1.0)) : normalize(vec3(aG.xy, 0.0));
+  vAO = aK < 0.5 ? clamp(1.0 - 0.075 * uRel * aC, 0.45, 1.0) : (aK > 1.5 ? 0.55 : 0.95);
+  vP = p; gl_Position = uVP * vec4(p, 1.0);
+}`;
+const FS = `#version 300 es
+precision highp float;
+in vec3 vP; in vec3 vN; in float vAO;
+uniform vec3 uCam, uL1, uL2, uWA, uWB; uniform float uMat;
+out vec4 o;
+float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+vec3 wood(vec3 p){
+  float n = noise(p * vec3(0.03, 0.0035, 0.03)) + 0.4 * noise(p * vec3(0.11, 0.012, 0.11));
+  float r = fract(p.x * 0.05 + p.z * 0.03 + n * 1.7);
+  float ring = smoothstep(0.0, 0.3, r) * smoothstep(0.8, 0.35, r);
+  vec3 c = mix(uWB, uWA, 0.62 + 0.38 * ring);
+  return c * (0.94 + 0.1 * noise(p * vec3(0.7, 0.05, 0.7)));
+}
+void main(){
+  vec3 N = normalize(vN), V = normalize(uCam - vP);
+  vec3 base = uMat < 0.5 ? wood(vP) : vec3(0.69, 0.69, 0.68);
+  float d1 = max(dot(N, uL1), 0.0), d2 = max(dot(N, uL2), 0.0);
+  float hemi = 0.62 + 0.38 * N.y;
+  float sp = pow(max(dot(N, normalize(uL1 + V)), 0.0), uMat < 0.5 ? 34.0 : 22.0) * (uMat < 0.5 ? 0.16 : 0.08);
+  vec3 col = base * (0.36 * hemi * vAO + 0.80 * d1 * mix(0.72, 1.0, vAO) + 0.20 * d2 * vAO) + sp * vAO;
+  o = vec4(col, 1.0);
+}`;
+const WVS = `#version 300 es
+in vec2 aW; uniform mat4 uVP; out vec2 vW;
+void main(){ vW = aW; gl_Position = uVP * vec4(aW, -0.05, 1.0); }`;
+const WFS = `#version 300 es
+precision highp float;
+in vec2 vW; uniform sampler2D uSh; uniform vec4 uRect; uniform vec3 uInst[4]; uniform int uCount;
+uniform vec3 uWall; uniform vec2 uDir;
+out vec4 o;
+void main(){
+  float occ = 0.0, cont = 0.0;
+  for (int k = 0; k < 4; k++){
+    if (k >= uCount) break;
+    vec2 q = vW - uInst[k].xy;
+    vec2 s = q - uDir * (0.6 * uInst[k].z);
+    occ = max(occ, texture(uSh, vec2((s.x - uRect.x) / uRect.z, (uRect.y - s.y) / uRect.w)).r);
+    cont = max(cont, texture(uSh, vec2((q.x - uRect.x) / uRect.z, (uRect.y - q.y) / uRect.w)).r);
+  }
+  o = vec4(uWall * (1.0 - 0.34 * occ - 0.10 * cont), 1.0);
+}`;
+const prog = (vs, fs) => { const p = gl.createProgram();
+  for (const [t, s] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const sh = gl.createShader(t);
+    gl.shaderSource(sh, s); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); gl.attachShader(p, sh); }
+  gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name.replace('[0]', ''); u[nm] = gl.getUniformLocation(p, nm); }
+  return {p, u}; };
+
+/* ---------- geometrie din harta de înălțimi ---------- */
+const boxBlur = (src, W, H, r, passes) => { let a = Float32Array.from(src), b = new Float32Array(W * H);
+  for (let it = 0; it < passes; it++) {
+    for (let y = 0; y < H; y++) { let s = 0; const o = y * W;
+      for (let x = -r; x <= r; x++) s += a[o + Math.min(W - 1, Math.max(0, x))];
+      for (let x = 0; x < W; x++) { b[o + x] = s / (2 * r + 1);
+        s += a[o + Math.min(W - 1, x + r + 1)] - a[o + Math.max(0, x - r)]; } }
+    for (let x = 0; x < W; x++) { let s = 0;
+      for (let y = -r; y <= r; y++) s += b[Math.min(H - 1, Math.max(0, y)) * W + x];
+      for (let y = 0; y < H; y++) { a[y * W + x] = s / (2 * r + 1);
+        s += b[Math.min(H - 1, y + r + 1) * W + x] - b[Math.max(0, y - r) * W + x]; } } }
+  return a; };
+
+function buildMesh(px) {
+  const W = META.w, H = META.h, CX = META.cx, CY = META.cy, N = W * H;
+  const h = new Float32Array(N), dd = new Float32Array(N), sd = new Float32Array(N), m = new Uint8Array(N);
+  for (let i = 0; i < H; i++) for (let j = 0; j < W; j++) { const k = i * W + j, a = (i * 2 * W + j) * 4, b = (i * 2 * W + W + j) * 4;
+    m[k] = px[a+2] > 128 ? 1 : 0; sd[k] = (px[a+2] - 128) / 60;
+    h[k] = m[k] ? ((px[a] << 4) | (px[a+1] >> 4)) / 4095 : 0;
+    dd[k] = m[k] ? (((px[b] << 4) | (px[b+1] >> 4)) / 4095 * 2 - 1) * META.dmax : 0; }
+  const hb = boxBlur(h, W, H, 5, 3), mb = sd, hs = boxBlur(h, W, H, 1, 1), ds = boxBlur(dd, W, H, 1, 1);
+  const X = j => (j - (W - 1) / 2) * CX, Y = i => ((H - 1) / 2 - i) * CY;
+  const inc = new Uint8Array(N), vid = new Int32Array(N).fill(-1);
+  for (let i = 0; i < H - 1; i++) for (let j = 0; j < W - 1; j++) { const k = i * W + j;
+    if (m[k] && m[k+1] && m[k+W] && m[k+W+1]) { inc[k] = 1; vid[k] = vid[k+1] = vid[k+W] = vid[k+W+1] = 0; } }
+  const isInc = (i, j) => i >= 0 && j >= 0 && i < H - 1 && j < W - 1 && inc[i * W + j] === 1;
+  let nv = 0, nInc = 0; for (let k = 0; k < N; k++) { if (vid[k] >= 0) vid[k] = nv++; nInc += inc[k]; }
+  const dX = new Float32Array(N), dY = new Float32Array(N);
+  for (let i = 1; i < H - 1; i++) for (let j = 1; j < W - 1; j++) { const k = i * W + j;
+    if (vid[k] < 0 || (isInc(i-1, j-1) && isInc(i-1, j) && isInc(i, j-1) && isInc(i, j))) continue;
+    const gx = (sd[k+1] - sd[k-1]) / (2 * CX), gr = (sd[k+W] - sd[k-W]) / (2 * CY), g2 = gx * gx + gr * gr; if (g2 < 1e-4) continue;
+    let ux = -sd[k] * gx / g2, ur = -sd[k] * gr / g2; const L = Math.hypot(ux, ur), lim = 0.9 * CX;
+    if (L > lim) { ux *= lim / L; ur *= lim / L; } dX[k] = ux; dY[k] = -ur; }
+  let nWall = 0; for (let i = 0; i < H - 1; i++) for (let j = 0; j < W - 1; j++) if (inc[i*W+j])
+    nWall += !isInc(i-1, j) + !isInc(i+1, j) + !isInc(i, j-1) + !isInc(i, j+1);
+  const V = new Float32Array((nv + nWall * 4) * 10);
+  for (let i = 0; i < H; i++) for (let j = 0; j < W; j++) { const k = i * W + j, v = vid[k]; if (v < 0) continue;
+    const kl = i*W + Math.max(0, j-1), kr = i*W + Math.min(W-1, j+1), ku = Math.max(0, i-1)*W + j, kd = Math.min(H-1, i+1)*W + j;
+    V.set([X(j) + dX[k], Y(i) + dY[k], h[k], dd[k], (hs[kr] - hs[kl]) / (2 * CX), (hs[ku] - hs[kd]) / (2 * CY),
+      (ds[kr] - ds[kl]) / (2 * CX), (ds[ku] - ds[kd]) / (2 * CY), 0, Math.max(0, hb[k] - h[k])], v * 10); }
+  const I = new Uint32Array(nInc * 6 + nWall * 6);
+  let ii = 0;
+  for (let i = 0; i < H - 1; i++) for (let j = 0; j < W - 1; j++) { const k = i * W + j; if (!inc[k]) continue;
+    const a = vid[k], b = vid[k+1], c = vid[k+W], e = vid[k+W+1];
+    I[ii++] = c; I[ii++] = e; I[ii++] = b; I[ii++] = c; I[ii++] = b; I[ii++] = a; }
+  let wv = nv;
+  const vn = (q, fx, fy) => { const i0 = Math.floor(q / W), j0 = q % W;
+    const gx = mb[i0*W + Math.min(W-1, j0+1)] - mb[i0*W + Math.max(0, j0-1)];
+    const gy = mb[Math.max(0, i0-1)*W + j0] - mb[Math.min(H-1, i0+1)*W + j0];
+    const L = Math.hypot(gx, gy); if (L < 1e-3 || -(gx * fx + gy * fy) / L < 0.2) return [fx, fy];
+    return [-gx / L, -gy / L]; };
+  const wall = (ia, ja, ib, jb, fx, fy) => {
+    const A = ia * W + ja, B = ib * W + jb, base = wv;
+    for (const [q, kind] of [[A, 1], [B, 1], [B, 2], [A, 2]]) { const qi = Math.floor(q / W), qj = q % W, n = vn(q, fx, fy);
+      V.set([X(qj) + dX[q], Y(qi) + dY[q], h[q], dd[q], n[0], n[1], 0, 0, kind, 0], wv * 10); wv++; }
+    I[ii++] = base; I[ii++] = base + 1; I[ii++] = base + 2; I[ii++] = base; I[ii++] = base + 2; I[ii++] = base + 3; };
+  for (let i = 0; i < H - 1; i++) for (let j = 0; j < W - 1; j++) { if (!inc[i*W+j]) continue;
+    if (!isInc(i-1, j)) wall(i, j, i, j+1, 0, 1);
+    if (!isInc(i+1, j)) wall(i+1, j+1, i+1, j, 0, -1);
+    if (!isInc(i, j-1)) wall(i+1, j, i, j, -1, 0);
+    if (!isInc(i, j+1)) wall(i, j+1, i+1, j+1, 1, 0); }
+  // umbră: masca estompată, cu margine
+  const P = 70, SW = W + 2 * P, SH = H + 2 * P, sm = new Float32Array(SW * SH);
+  for (let i = 0; i < H; i++) for (let j = 0; j < W; j++) sm[(i + P) * SW + j + P] = m[i * W + j];
+  const sb = boxBlur(sm, SW, SH, 9, 3), s8 = new Uint8Array(SW * SH);
+  for (let k = 0; k < s8.length; k++) s8[k] = Math.round(Math.min(1, sb[k]) * 255);
+  return {V, I, count: ii, sh: s8, SW, SH, rect: [X(0) - P * CX, Y(0) + P * CY, SW * CX, SH * CY]};
+}
+
+/* ---------- stare ---------- */
+const S = {mode: 12, T: 12, Tgo: 12, mat: 0, spin: false, view: '34',
+  yaw: -0.42, pitch: 0.17, dist: 1400, tgt: [0, 0, 6], yawG: -0.42, pitchG: 0.17, distG: 1400, tgtG: [0, 0, 6], fov: 0.62, fovG: 0.62, touched: false};
+const VIEWS = {front: [0, 0], '34': [-0.42, 0.17], side: [-1.3, 0.08]};
+const FOVS = {single: 0.62, all: 0.62};
+let need = true, mesh = null, W = 1, H = 1, dpr = 1, last = 0, t0 = performance.now();
+const layout = () => {
+  if (S.mode !== 'all') return {inst: [[0, 0, S.T]], hw: 250, hh: 252};
+  if (W / H > 1.6) return {inst: [[-780, 0, 9], [-260, 0, 12], [260, 0, 20], [780, 0, 30]], hw: 1020, hh: 340};
+  return {inst: [[-260, 280, 9], [260, 280, 12], [-260, -300, 20], [260, -300, 30]], hw: 520, hh: 610}; };
+const frameCam = () => { const L = layout(); S.fovG = S.mode === 'all' ? FOVS.all : FOVS.single;
+  const t = Math.tan(S.fovG / 2), a = W / H;
+  S.distG = Math.max(L.hh / t, L.hw / (t * a)) * (S.mode === 'all' ? 1.0 : 0.98); S.tgtG = [0, 0, 6]; need = true; };
+const setView = v => { S.view = v; [S.yawG, S.pitchG] = VIEWS[v];
+  for (const b of document.querySelectorAll('#views button')) b.setAttribute('aria-pressed', b.dataset.v === v); frameCam(); };
+const readout = () => { const t = $('#tVal'), s = $('#tSub');
+  if (S.mode === 'all') { t.textContent = '9, 12, 20 и 30 мм'; s.textContent = 'основание 3 мм у всех'; }
+  else { t.textContent = S.mode + ' мм'; s.textContent = 'основание 3 + рельеф ' + (S.mode - 3) + ' мм'; } };
+const setThick = v => { S.mode = v === 'all' ? 'all' : +v; if (S.mode !== 'all') S.Tgo = S.mode;
+  if (reduce && S.mode !== 'all') S.T = S.Tgo;
+  for (const b of document.querySelectorAll('#thick button')) b.setAttribute('aria-pressed', b.dataset.t === String(v));
+  if (S.mode === 'all' && S.view === 'front') setView('34'); readout(); frameCam(); };
+
+/* ---------- culori din temă ---------- */
+const probe = document.createElement('i'); probe.style.display = 'none'; document.body.appendChild(probe);
+const col = v => { probe.style.color = `var(${v})`; const c = getComputedStyle(probe).color.match(/[\d.]+/g) || [230, 230, 230];
+  return [c[0] / 255, c[1] / 255, c[2] / 255]; };
+let wallC = [0.91, 0.9, 0.88];
+const theme = () => { wallC = col('--wall'); gl && gl.clearColor(wallC[0], wallC[1], wallC[2], 1); need = true; };
+new MutationObserver(theme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+
+/* ---------- interacțiune ---------- */
+const ptr = new Map(); let pinch = null;
+const touched = () => { if (!S.touched) { S.touched = true; hint.style.opacity = 0; } };
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]); pinch = null; touched(); });
+cv.addEventListener('pointermove', e => { if (!ptr.has(e.pointerId)) return; const p = ptr.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1];
+  ptr.set(e.pointerId, [e.clientX, e.clientY]);
+  if (ptr.size === 1) { S.yawG = Math.max(-1.45, Math.min(1.45, S.yawG - dx * 0.006)); S.pitchG = Math.max(-1.2, Math.min(1.2, S.pitchG + dy * 0.006)); }
+  else if (ptr.size === 2) { const [a, b] = [...ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (pinch) { S.distG = Math.max(250, Math.min(6000, S.distG * pinch.d / d)); pan(c[0] - pinch.c[0], c[1] - pinch.c[1]); }
+    pinch = {d, c}; }
+  need = true; });
+const up = e => { ptr.delete(e.pointerId); pinch = null; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('wheel', e => { e.preventDefault(); touched(); S.distG = Math.max(250, Math.min(6000, S.distG * Math.exp(e.deltaY * 0.0012))); need = true; }, {passive: false});
+cv.addEventListener('dblclick', () => setView(S.view));
+cv.addEventListener('keydown', e => { const k = e.key, s = 0.08;
+  if (k === 'ArrowLeft') S.yawG -= s; else if (k === 'ArrowRight') S.yawG += s; else if (k === 'ArrowUp') S.pitchG -= s;
+  else if (k === 'ArrowDown') S.pitchG += s; else if (k === '+' || k === '=') S.distG *= 0.9; else if (k === '-') S.distG *= 1.1; else return;
+  e.preventDefault(); touched(); need = true; });
+function pan(dx, dy) { const s = 2 * S.dist * Math.tan(S.fov / 2) / (H / dpr), cy = Math.cos(S.yaw);
+  S.tgtG = [S.tgtG[0] - dx * s * cy, S.tgtG[1] + dy * s, S.tgtG[2] + dx * s * Math.sin(S.yaw)]; }
+for (const b of document.querySelectorAll('#thick button')) b.onclick = () => setThick(b.dataset.t);
+for (const b of document.querySelectorAll('#views button')) b.onclick = () => setView(b.dataset.v);
+for (const b of document.querySelectorAll('#mats button')) b.onclick = () => { S.mat = +b.dataset.m;
+  for (const c of document.querySelectorAll('#mats button')) c.setAttribute('aria-pressed', c === b); need = true; };
+$('#spin').onclick = () => { S.spin = !S.spin; $('#spin').setAttribute('aria-pressed', S.spin); t0 = performance.now(); need = true; };
+
+/* ---------- pornire ---------- */
+async function loadPixels() {
+  const blob = await (await fetch('model.png')).blob();
+  let img;
+  try { img = await createImageBitmap(blob, {premultiplyAlpha: 'none', colorSpaceConversion: 'none'}); }
+  catch (e) { img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(blob); }); }
+  const c = document.createElement('canvas'); c.width = 2 * META.w; c.height = META.h;
+  const x = c.getContext('2d', {willReadFrequently: true}); x.drawImage(img, 0, 0);
+  return x.getImageData(0, 0, 2 * META.w, META.h).data; }
+
+async function start() {
+  if (!gl) return fail('Браузер не поддерживает WebGL 2. Откройте страницу в актуальном Chrome, Safari или Firefox.');
+  let P, Wp;
+  try { P = prog(VS, FS); Wp = prog(WVS, WFS); mesh = buildMesh(await loadPixels()); }
+  catch (e) { return fail('Не удалось загрузить модель: ' + e.message); }
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, mesh.V, gl.STATIC_DRAW);
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.I, gl.STATIC_DRAW);
+  [['aP', 2, 0], ['aH', 1, 2], ['aD', 1, 3], ['aG', 4, 4], ['aK', 1, 8], ['aC', 1, 9]].forEach(([n, s, o]) => { const l = gl.getAttribLocation(P.p, n);
+    if (l < 0) return; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, s, gl.FLOAT, false, 40, o * 4); });
+  const wvao = gl.createVertexArray(); gl.bindVertexArray(wvao);
+  const wb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, wb);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-60000, -60000, 60000, -60000, 60000, 60000, -60000, -60000, 60000, 60000, -60000, 60000]), gl.STATIC_DRAW);
+  const wl = gl.getAttribLocation(Wp.p, 'aW'); gl.enableVertexAttribArray(wl); gl.vertexAttribPointer(wl, 2, gl.FLOAT, false, 8, 0);
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, mesh.SW, mesh.SH, 0, gl.RED, gl.UNSIGNED_BYTE, mesh.sh);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+  gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE);
+  theme(); msg.style.display = 'none';
+  const L1 = norm([-0.45, 0.55, 0.70]), L2 = norm([0.6, -0.25, 0.55]);
+  const resize = () => { dpr = Math.min(2, devicePixelRatio || 1); W = Math.max(1, Math.round(stage.clientWidth * dpr)); H = Math.max(1, Math.round(stage.clientHeight * dpr));
+    cv.width = W; cv.height = H; gl.viewport(0, 0, W, H); frameCam(); if (!S.touched) { S.dist = S.distG; S.fov = S.fovG; } need = true; };
+  const ro = new ResizeObserver(resize); ro.observe(stage); resize();
+  let tPrev = performance.now();
+  const draw = now => {
+    const dt = Math.min(100, now - tPrev); tPrev = now;
+    const k = reduce ? 1 : 1 - Math.exp(-dt / 110); let moving = false;
+    const ease = (a, b) => { const d = b - a; if (Math.abs(d) > 1e-4 * (1 + Math.abs(b))) { moving = true; return a + d * k; } return b; };
+    if (S.spin && !ptr.size) { S.yawG = Math.sin((now - t0) / 2600) * 0.75; moving = true; }
+    S.yaw = ease(S.yaw, S.yawG); S.pitch = ease(S.pitch, S.pitchG); S.dist = ease(S.dist, S.distG);
+    S.tgt = S.tgt.map((v, i) => ease(v, S.tgtG[i])); S.T = ease(S.T, S.Tgo); S.fov = ease(S.fov, S.fovG);
+    if (need || moving) {
+      need = false;
+      const L = layout(), cp = Math.cos(S.pitch), e = [S.tgt[0] + S.dist * Math.sin(S.yaw) * cp, S.tgt[1] + S.dist * Math.sin(S.pitch), S.tgt[2] + S.dist * Math.cos(S.yaw) * cp];
+      const hh = S.dist * Math.tan(S.fov / 2), asp = W / H;
+      const PR = S.mode === 'all' ? ortho(-hh * asp, hh * asp, -hh, hh, -3000, S.dist + 150000) : persp(S.fov, asp, S.dist * 0.05, S.dist * 400);
+      const VP = mul(PR, lookAt(e, S.tgt, [0, 1, 0]));
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(Wp.p); gl.bindVertexArray(wvao); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniformMatrix4fv(Wp.u.uVP, false, VP); gl.uniform1i(Wp.u.uSh, 0); gl.uniform4fv(Wp.u.uRect, mesh.rect);
+      const inst = new Float32Array(12); L.inst.forEach((q, i) => inst.set([q[0], q[1], q[2]], i * 3));
+      gl.uniform3fv(Wp.u.uInst, inst); gl.uniform1i(Wp.u.uCount, L.inst.length); gl.uniform3fv(Wp.u.uWall, wallC);
+      gl.uniform2f(Wp.u.uDir, -L1[0] / L1[2], -L1[1] / L1[2]);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.useProgram(P.p); gl.bindVertexArray(vao);
+      gl.uniformMatrix4fv(P.u.uVP, false, VP); gl.uniform3fv(P.u.uCam, e); gl.uniform3fv(P.u.uL1, L1); gl.uniform3fv(P.u.uL2, L2);
+      gl.uniform3f(P.u.uWA, 0.80, 0.50, 0.28); gl.uniform3f(P.u.uWB, 0.62, 0.34, 0.17); gl.uniform1f(P.u.uMat, S.mat);
+      L.inst.forEach((q, i) => { const R = q[2] - META.base, f = Math.max(0, Math.min(META.m.length - 1.001, (q[2] - META.t0) / META.ts)), f0 = Math.floor(f);
+        gl.uniform2f(P.u.uOff, q[0], q[1]); gl.uniform1f(P.u.uBase, META.base); gl.uniform1f(P.u.uRel, R);
+        gl.uniform1f(P.u.uKd, META.detail * Math.sqrt(17 / R) - 1); gl.uniform1f(P.u.uM, META.m[f0] + (META.m[f0 + 1] - META.m[f0]) * (f - f0));
+        gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_INT, 0);
+        const lb = labs[i], s = project(VP, [q[0], q[1] - 272, 0], W / dpr, H / dpr);
+        if (S.mode === 'all' && s[2] > 0) { lb.style.display = 'block'; lb.style.left = s[0] + 'px'; lb.style.top = s[1] + 'px'; } });
+      if (S.mode !== 'all') labs.forEach(l => l.style.display = 'none');
+    }
+    requestAnimationFrame(draw); };
+  requestAnimationFrame(draw);
+}
+readout();
+setTimeout(() => { hint.style.opacity = 0; }, 6000);
+start();
+}
+</script>
+</body>
+</html>
