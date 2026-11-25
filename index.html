@@ -31,7 +31,9 @@ h1{margin:0;font-weight:800;font-size:clamp(24px,3.2vw,34px);line-height:1.05;le
 .stage canvas:active{cursor:grabbing}
 .hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--mute);white-space:nowrap;pointer-events:none;transition:opacity .6s}
 .lab{position:absolute;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 10px;font-weight:800;font-size:15px;white-space:nowrap;pointer-events:none;display:none}
-.msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--mute);font-weight:600}
+.msg{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:10px;text-align:center;padding:24px;color:var(--mute);font-weight:600}
+.msg img{max-width:100%;max-height:62vh;object-fit:contain}
+.msg p{margin:0}
 .dock{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;padding:10px max(16px,3vw) max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}
 .grp{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;background:var(--bg)}
@@ -90,7 +92,9 @@ const $ = s => document.querySelector(s);
 const cv = $('#gl'), stage = $('#stage'), msg = $('#msg'), hint = $('#hint');
 const labs = [$('#lab0'), $('#lab1'), $('#lab2'), $('#lab3')];
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const fail = t => { msg.textContent = t; msg.style.display = 'grid'; };
+const fail = t => { const im = new Image(), p = document.createElement('p');
+  im.alt = 'Барочный орнамент'; im.onerror = () => im.remove(); im.src = 'preview.jpg';
+  p.textContent = t; msg.replaceChildren(im, p); msg.style.display = 'grid'; hint.style.display = 'none'; };
 const gl = cv.getContext('webgl2', {antialias: true, alpha: false, powerPreference: 'high-performance'});
 
 /* ---------- matematică ---------- */
